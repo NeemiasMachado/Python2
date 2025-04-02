@@ -36,8 +36,10 @@ html_template = '''
             <li><a href="/comparar"> Comparar </a></li>
             <li><a href="/upload_avengers"> Upload do CSV </a></li>
             <li><a href="/apagar_avengers"> Apagar Tabela Avengers </a></li>
-            <li><a href="/atribuir_paises_avenger"> Atribuir Paises </a></li>
-            <li><a href=""> V.A.A (Vingadores Alcoólicos Anônimos) </a></li>
+            <li><a href="/atribuir_paises_avengers"> Atribuir Paises </a></li>
+            <li><a href="/ver_avengers"> Ver tabela avengers </a></li>
+            <li><a href="/consultar_avenger"> Consultar detalhes do vingador </a></li>
+            <li><a href="/avengers_vs_drinks"> V.A.A (Vingadores Alcolicos Anonimos) </a></li>
         </ul>
 
 '''
@@ -153,20 +155,74 @@ def upload_avenger():
         file = request.files["file"]
         if not file:
             return "<h3>Nenhum arquivo enviado</h3><br><a href='/upload_avengers'>Voltar ao Inicio</a>"
-        df_avengers = pd.read.csv(file, encoding="latin1")
+        df_avengers = pd.read_csv(file, encoding="latin1")
         conn = sqlite3.connect("C:/Users/noturno/Desktop/Neemias/Python 2/Sistema/04_consumo_alcool.db")
-        df_avengers.to_sql("avenger", conn, if_exists="replace", index=False)
+        df_avengers.to_sql("avengers", conn, if_exists="replace", index=False)
         conn.commit()
         conn.close()
         return "<h3>Arquivo inserido com sucesso!</h3><a href='/'>voltar</a>"
     return '''
         <h2>Upload do arquivo Avengers</h2>
-        <form method="POST" enctype="multpart/form-data">
-            <input type="file" name="file" accept=".csv">
+        <form method="POST" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".csv"><br>
             <input type="submit" value=" - Enviar - ">      
         </form>
 '''
-  
+@app.route('/apagar_avengers')
+def apagar_avengers():
+    conn = sqlite3.connect("C:/Users/noturno/Desktop/Neemias/Python 2/Sistema/04_consumo_alcool.db")
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("DROP TABLE IF EXISTS avengers")
+        conn.commit()
+        mensagem = "<h3>Tabela 'avengers' apagada com sucesso! </h3>"
+
+    except Exception as errinho:
+        mensagem = f"<h3>Erro ao apagar a tabela: {str(errinho)}</h3>"
+        
+    conn.close()
+    return mensagem + "<br><h3><a href='/'>voltar ao inicio</a>"
+    
+@app.route("/atribuir_paises_avengers")
+def atribuir_paises_avengers():
+    conn = sqlite3.connect("C:/Users/noturno/Desktop/Neemias/Python 2/Sistema/04_consumo_alcool.db")
+    df_avengers = pd.read_sql_query("SELECT * FROM avengers", conn)
+    df_drinks = pd.read_sql("SELECT country FROM drinks", conn)
+
+    random.seed(42)
+    paises_possiveis = df_drinks["country"].unique()
+    df_avengers["country"] = [random.choice(paises_possiveis) for _ in range(len(df_avengers))]
+
+    df_avengers.to_sql("avengers", conn, if_exists="replace", index=False)
+    conn.commit()
+    conn.close()
+
+    return "<br><hr><h3>paises atribuidos aos Vingadores com sucesso!</h3> <br><hr><br><a href='/'>voltar ao inicio</a>"
+
+@app.route("/ver_avengers")
+def ver_avengers():
+    conn = sqlite3.connect("C:/Users/noturno/Desktop/Neemias/Python 2/Sistema/04_consumo_alcool.db")
+    try:
+        df_avengers = pd.read_sql_query("SELECT * FROM avengers", conn)
+    except Exception as e:
+        conn.close()
+        return f"<h3>Erro ao consultar a tabela: {str(e)}</h3><br><a href='/'>voltar ao inicio</a>"
+    conn.close()
+    
+    if df_avengers.empty:
+        return "<h3>A tabela 'avengers' está vazia ou não existe</h3><br><a href='/'>voltar ao inicio</a>"
+    
+    return df_avengers.to_html(index=False) + "<br><a href='/'>voltar ao inicio</a>"
+
+@app.route("/consultar_avenger")
+def consultar_avenger():
+    conn = sqlite3.connect("C:/Users/noturno/Desktop/Neemias/Python 2/Sistema/04_consumo_alcool.db")
+    df_avengers = pd.read_sql_query("SELECT * FROM avengers", conn)
+    conn.close()
+    #vamos continuar daqui!!!
+
+
 
 
 # inicia o servidor flask
